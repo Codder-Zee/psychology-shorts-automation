@@ -1,0 +1,20 @@
+on:
+  schedule:
+    - cron: '0 3 * * *'
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python generate_script.py
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      - run: python generate_voice.py
+      - run: python generate_video.py
+      - run: python upload_youtube.py
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
