@@ -1,8 +1,7 @@
 import os
 import sys
-import traceback
 import requests
-import json
+import traceback
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -10,48 +9,57 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 PROMPT = (
     "Write a Hindi psychology short video script.\n"
     "Length: 40 to 60 seconds.\n"
-    "- 8 to 12 scenes\n"
-    "- Each scene on new line\n"
+    "Structure:\n"
+    "- 8 to 12 short scenes\n"
+    "- Each scene on a new line\n"
     "- No emojis\n"
     "- No hashtags\n"
     "- No repetition\n"
 )
 
+# ---------------- HF GENERATION ----------------
 def generate_from_hf():
     if not HF_TOKEN:
         raise RuntimeError("HF_TOKEN missing")
 
-    url = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.2"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    payload = {
-        "inputs": PROMPT,
-        "parameters": {
-            "max_new_tokens": 450,
-            "temperature": 0.8,
-            "return_full_text": False
-        }
+    url = "https://router.huggingface.co/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"
     }
 
-    res = requests.post(url, headers=headers, json=payload, timeout=60)
+    payload = {
+        "model": "mistralai/Mistral-7B-Instruct-v0.2",
+        "messages": [
+            {"role": "user", "content": PROMPT}
+        ],
+        "max_tokens": 400,
+        "temperature": 0.8
+    }
 
-    if res.status_code != 200:
-        raise RuntimeError(f"HF API {res.status_code}: {res.text}")
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
 
-    data = res.json()
-    if not isinstance(data, list) or "generated_text" not in data[0]:
-        raise ValueError(f"HF invalid response: {data}")
+    if r.status_code != 200:
+        raise RuntimeError(f"HF API {r.status_code}: {r.text}")
 
-    return data[0]["generated_text"]
+    data = r.json()
+
+    try:
+        return data["choices"][0]["message"]["content"]
+    except Exception:
+        raise RuntimeError(f"HF invalid response format: {data}")
 
 
+# ---------------- GEMINI GENERATION ----------------
 def generate_from_gemini():
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY missing")
 
-    from google.generativeai import configure, GenerativeModel
-    configure(api_key=GEMINI_API_KEY)
+    import google.generativeai as genai
 
-    model = GenerativeModel("gemini-pro")
+    genai.configure(api_key=GEMINI_API_KEY)
+
+    model = genai.GenerativeModel("gemini-1.5-flash")
     response = model.generate_content(PROMPT)
 
     if not response or not response.text:
@@ -60,6 +68,7 @@ def generate_from_gemini():
     return response.text
 
 
+# ---------------- MAIN ----------------
 try:
     print("▶ Trying HuggingFace...")
     text = generate_from_hf()
@@ -72,7 +81,7 @@ except Exception as hf_error:
 
     try:
         text = generate_from_gemini()
-        print("✅ Gemini fallback success")
+        print("✅ Gemini success")
 
     except Exception as gemini_error:
         print("\n❌ Gemini ALSO FAILED")
@@ -81,12 +90,13 @@ except Exception as hf_error:
         traceback.print_exc()
         sys.exit(1)
 
+# ---------------- VALIDATION ----------------
 lines = [l.strip() for l in text.split("\n") if l.strip()]
 
 if len(lines) < 8:
-    raise RuntimeError(f"Script too short: {len(lines)} scenes")
+    raise RuntimeError(f"Script too short ({len(lines)} scenes). Aborting.")
 
 with open("script.txt", "w", encoding="utf-8") as f:
     f.write("\n".join(lines[:12]))
 
-print(f"🎬 Script ready: {len(lines[:12])} scenes")
+print(f"🎬 Script generated: {len(lines[:12])} scenes")
