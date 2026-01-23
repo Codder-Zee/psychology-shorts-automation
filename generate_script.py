@@ -7,7 +7,7 @@ if not HF_TOKEN:
     print("HF_TOKEN missing")
     sys.exit(1)
 
-API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+API_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.2"
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 PROMPT = (
