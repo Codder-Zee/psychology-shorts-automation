@@ -1,39 +1,39 @@
 import requests
 import os
-import time
 
 API_URL = "https://api-inference.huggingface.co/models/bigscience/bloomz"
 headers = {
-    "Authorization": f"Bearer {os.environ.get('HF_TOKEN')}"
+    "Authorization": f"Bearer {os.environ['HF_TOKEN']}"
 }
 
 prompt = (
-    "Hindi me 25-30 shabdon ka psychology fact likho "
-    "jo human behavior par ho, awareness tone me."
+    "Hindi me 6 scenes wali psychology short video script likho.\n"
+    "Har scene 1–2 line ka ho.\n"
+    "Topic: human behavior psychology.\n"
+    "Tone: suspense + awareness.\n"
+    "Total length 40–60 seconds.\n"
+    "Har scene alag line me ho."
 )
 
 payload = {
     "inputs": prompt,
-    "options": {
-        "wait_for_model": True
-    }
+    "options": {"wait_for_model": True}
 }
 
-response = requests.post(API_URL, headers=headers, json=payload)
-data = response.json()
+res = requests.post(API_URL, headers=headers, json=payload)
+data = res.json()
 
-# 🔐 SAFE handling
 text = ""
-
-if isinstance(data, list) and len(data) > 0 and "generated_text" in data[0]:
+if isinstance(data, list) and "generated_text" in data[0]:
     text = data[0]["generated_text"]
-elif isinstance(data, dict) and "generated_text" in data:
-    text = data["generated_text"]
 else:
-    # fallback (VERY IMPORTANT)
     text = (
-        "Psychology ke mutabik agar koi vyakti baar baar chup ho jaata hai, "
-        "to wo apni emotions ko control kar raha hota hai."
+        "Log aksar apni asli feelings chhupa lete hain.\n"
+        "Ye habit dheere dheere emotional distance banati hai.\n"
+        "Psychology ke mutabik ye self-protection hota hai.\n"
+        "Par zyada der tak chup rehna dangerous ho sakta hai.\n"
+        "Strong log madad maangne se nahi darte.\n"
+        "Isliye bolna seekhna bhi strength hai."
     )
 
 with open("script.txt", "w", encoding="utf-8") as f:
