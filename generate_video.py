@@ -1,51 +1,46 @@
-from moviepy.editor import (
-    ImageClip,
-    AudioFileClip,
-    TextClip,
-    CompositeVideoClip
-)
+from moviepy.editor import ImageClip, AudioFileClip, CompositeVideoClip
+from PIL import Image, ImageDraw, ImageFont
+import requests
+import textwrap
 
 # Load audio
 audio = AudioFileClip("voice.mp3")
 duration = audio.duration
 
-# Background image (royalty-free)
-bg = ImageClip("https://picsum.photos/1080/1920").set_duration(duration)
+# Download background image
+img_data = requests.get("https://picsum.photos/1080/1920").content
+with open("bg.jpg", "wb") as f:
+    f.write(img_data)
 
-# Load subtitles safely
-subs = []
+# Open image with PIL
+img = Image.open("bg.jpg").convert("RGB")
+draw = ImageDraw.Draw(img)
+
+# Load subtitles
 try:
     subs = open("subs.txt", encoding="utf-8").read().splitlines()
 except:
     subs = []
 
-# Fallback if subtitles empty
 if not subs:
-    subs = ["Psychology ke mutabik dimag aadaton se control hota hai"]
+    subs = ["Psychology ke mutabik insaan aadaton se control hota hai"]
 
-clips = []
-start = 0
-gap = duration / len(subs)
+# Font (Pillow default safe font)
+font = ImageFont.load_default()
 
-for line in subs:
-    txt = TextClip(
-        line,
-        fontsize=60,
-        font="DejaVu-Sans",          # ✅ safer font for GitHub runner
-        color="white",
-        stroke_color="black",
-        stroke_width=2,
-        size=(900, None),
-        method="caption"
-    ).set_position(("center", "bottom")) \
-     .set_start(start) \
-     .set_duration(gap)
+# Draw subtitles (center bottom)
+y = 1500
+for line in subs[:3]:
+    wrapped = textwrap.fill(line, width=30)
+    draw.text((100, y), wrapped, font=font, fill="white")
+    y += 60
 
-    clips.append(txt)
-    start += gap
+# Save final image
+img.save("final_bg.jpg")
 
-# Final video
-video = CompositeVideoClip([bg, *clips]).set_audio(audio)
+# Create video
+bg_clip = ImageClip("final_bg.jpg").set_duration(duration)
+video = bg_clip.set_audio(audio)
 
 video.write_videofile(
     "short.mp4",
