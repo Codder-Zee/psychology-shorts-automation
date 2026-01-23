@@ -1,104 +1,74 @@
 import os
 import requests
 import sys
-import google.generativeai as genai
+import json
+import traceback
 
-# API Tokens
 HF_TOKEN = os.getenv("HF_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # GitHub Secrets mein add kiya hua hai
+if not HF_TOKEN:
+    raise RuntimeError("HF_TOKEN is missing in environment variables")
 
 API_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.2"
+
+HEADERS = {
+    "Authorization": f"Bearer {HF_TOKEN}",
+    "Content-Type": "application/json"
+}
 
 PROMPT = (
     "Write a Hindi psychology short video script.\n"
     "Length: 40 to 60 seconds.\n"
-    "Structure:\n"
-    "- 8 to 12 short scenes\n"
+    "Rules:\n"
+    "- 8 to 12 scenes\n"
     "- Each scene on a new line\n"
     "- No emojis\n"
     "- No hashtags\n"
     "- No repetition\n"
 )
 
-def call_gemini():
-    """Fallback function to generate script using Gemini 1.5 Flash"""
-    if not GEMINI_API_KEY:
-        print("GEMINI_API_KEY missing, cannot fallback.")
-        return None
-    
-    try:
-        print("Attempting Gemini API Fallback...")
-        genai.configure(api_key=GEMINI_API_KEY)
-        
-        # 'gemini-1.5-flash-latest' use karne se 404 error solve ho jayega
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-        
-        # Safety settings add ki hain taaki psychology facts block na hon
-        response = model.generate_content(
-            PROMPT,
-            safety_settings={
-                'HATE': 'BLOCK_NONE',
-                'HARASSMENT': 'BLOCK_NONE',
-                'SEXUAL' : 'BLOCK_NONE',
-                'DANGEROUS' : 'BLOCK_NONE'
-            }
-        )
-        return response.text.strip()
-    except Exception as e:
-        print(f"Gemini API also failed: {e}")
-        return None
-
-def call_huggingface():
-    """Primary function to generate script using Hugging Face"""
-    if not HF_TOKEN:
-        print("HF_TOKEN missing")
-        return None
-    
-    headers = {"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"}
-    payload = {
-        "inputs": [{"role": "user", "content": PROMPT}],
-        "parameters": {"max_new_tokens": 600, "temperature": 0.8, "top_p": 0.9}
+payload = {
+    "inputs": PROMPT,
+    "parameters": {
+        "max_new_tokens": 450,
+        "temperature": 0.8,
+        "return_full_text": False
     }
-    
-    try:
-        print("Attempting Hugging Face...")
-        res = requests.post(API_URL, headers=headers, json=payload, timeout=90)
-        if res.status_code != 200:
-            print(f"HF Status Code: {res.status_code}")
-            return None
-        
-        data = res.json()
-        if isinstance(data, list) and "generated_text" in data[0]:
-            return data[0]["generated_text"]
-        elif isinstance(data, dict) and "choices" in data:
-            return data["choices"][0]["message"]["content"]
-        return None
-    except Exception as e:
-        print(f"HF Exception: {e}")
-        return None
+}
 
-# --- Main Logic ---
-text = call_huggingface()
+try:
+    res = requests.post(API_URL, headers=HEADERS, json=payload, timeout=60)
 
-# Agar Hugging Face fail hua toh Gemini try karein
-if not text:
-    text = call_gemini()
+    if res.status_code == 401:
+        raise PermissionError("HF_TOKEN invalid or revoked")
 
-if not text:
-    print("Both APIs failed. Check your API Keys and internet connection.")
+    if res.status_code == 404:
+        raise RuntimeError("Model not found on HuggingFace Router")
+
+    if res.status_code == 429:
+        raise RuntimeError("HuggingFace rate limit exceeded")
+
+    if res.status_code != 200:
+        raise RuntimeError(f"HF API error {res.status_code}: {res.text}")
+
+    data = res.json()
+
+    if not isinstance(data, list) or "generated_text" not in data[0]:
+        raise ValueError(f"Unexpected HF response format: {json.dumps(data)[:200]}")
+
+    text = data[0]["generated_text"].strip()
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+
+    if len(lines) < 8:
+        raise ValueError(f"Only {len(lines)} scenes generated — aborting")
+
+    with open("script.txt", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines[:12]))
+
+    print(f"✅ Script generated successfully: {len(lines[:12])} scenes")
+
+except Exception as e:
+    print("\n❌ SCRIPT GENERATION FAILED")
+    print("Reason:", str(e))
+    print("\n--- TRACEBACK ---")
+    traceback.print_exc()
     sys.exit(1)
-
-text = text.strip()
-lines = [l.strip() for l in text.split("\n") if l.strip()]
-
-# Basic clean-up agar model prompt repeat kare
-clean_lines = [line for line in lines if not line.startswith("Write a") and not line.startswith("-")]
-
-if len(clean_lines) < 5: # Thoda relax kar diya limit ko
-    print(f"Script too short ({len(clean_lines)} lines), but saving anyway.")
-
-with open("script.txt", "w", encoding="utf-8") as f:
-    f.write("\n".join(clean_lines[:12]))
-
-print("Script generated successfully!")
-            
