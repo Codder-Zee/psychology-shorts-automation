@@ -8,7 +8,11 @@ if not HF_TOKEN:
     sys.exit(1)
 
 API_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.2"
-headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+
+headers = {
+    "Authorization": f"Bearer {HF_TOKEN}",
+    "Content-Type": "application/json"
+}
 
 PROMPT = (
     "Write a Hindi psychology short video script.\n"
@@ -21,16 +25,22 @@ PROMPT = (
     "- No repetition\n"
 )
 
+# ✅ Router-compatible payload
 payload = {
-    "inputs": PROMPT,
+    "inputs": [
+        {
+            "role": "user",
+            "content": PROMPT
+        }
+    ],
     "parameters": {
-        "max_new_tokens": 350,
+        "max_new_tokens": 600,
         "temperature": 0.8,
-        "return_full_text": False
+        "top_p": 0.9
     }
 }
 
-res = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+res = requests.post(API_URL, headers=headers, json=payload, timeout=90)
 
 if res.status_code != 200:
     print("HF API failed:", res.text)
@@ -38,14 +48,19 @@ if res.status_code != 200:
 
 data = res.json()
 
-if not isinstance(data, list) or "generated_text" not in data[0]:
-    print("Invalid HF response")
+# ✅ Router response handling
+if isinstance(data, list) and "generated_text" in data[0]:
+    text = data[0]["generated_text"]
+elif isinstance(data, dict) and "choices" in data:
+    text = data["choices"][0]["message"]["content"]
+else:
+    print("Invalid HF response:", data)
     sys.exit(1)
 
-text = data[0]["generated_text"].strip()
+text = text.strip()
 lines = [l.strip() for l in text.split("\n") if l.strip()]
 
-# ❌ NO fallback — strict validation
+# ❌ NO fallback — strict validation (as you asked)
 if len(lines) < 8:
     print("Script too short, aborting")
     sys.exit(1)
