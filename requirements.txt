@@ -1,6 +1,8 @@
 requests
 edge-tts
-moviepy
+moviepy==1.0.3
+imageio
+imageio-ffmpeg
 google-api-python-client
 google-auth
 google-auth-oauthlib
