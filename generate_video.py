@@ -1,46 +1,28 @@
-from moviepy.editor import ImageClip, AudioFileClip, CompositeVideoClip
-from PIL import Image, ImageDraw, ImageFont
+from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 import requests
-import textwrap
+import os
 
-# Load audio
 audio = AudioFileClip("voice.mp3")
-duration = audio.duration
 
-# Download background image
-img_data = requests.get("https://picsum.photos/1080/1920").content
-with open("bg.jpg", "wb") as f:
-    f.write(img_data)
+scenes = open("subs.txt", encoding="utf-8").read().splitlines()
+if len(scenes) == 0:
+    raise RuntimeError("No scenes found")
 
-# Open image with PIL
-img = Image.open("bg.jpg").convert("RGB")
-draw = ImageDraw.Draw(img)
+scene_duration = audio.duration / len(scenes)
+clips = []
 
-# Load subtitles
-try:
-    subs = open("subs.txt", encoding="utf-8").read().splitlines()
-except:
-    subs = []
+for i in range(len(scenes)):
+    img_url = f"https://picsum.photos/1080/1920?random={i}"
+    img_data = requests.get(img_url).content
 
-if not subs:
-    subs = ["Psychology ke mutabik insaan aadaton se control hota hai"]
+    img_path = f"scene_{i}.jpg"
+    with open(img_path, "wb") as f:
+        f.write(img_data)
 
-# Font (Pillow default safe font)
-font = ImageFont.load_default()
+    clip = ImageClip(img_path).set_duration(scene_duration)
+    clips.append(clip)
 
-# Draw subtitles (center bottom)
-y = 1500
-for line in subs[:3]:
-    wrapped = textwrap.fill(line, width=30)
-    draw.text((100, y), wrapped, font=font, fill="white")
-    y += 60
-
-# Save final image
-img.save("final_bg.jpg")
-
-# Create video
-bg_clip = ImageClip("final_bg.jpg").set_duration(duration)
-video = bg_clip.set_audio(audio)
+video = concatenate_videoclips(clips).set_audio(audio)
 
 video.write_videofile(
     "short.mp4",
