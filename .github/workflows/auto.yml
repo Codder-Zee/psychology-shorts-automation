@@ -1,4 +1,7 @@
+name: Auto Hindi Shorts
+
 on:
+  workflow_dispatch:   # 👈 YE LINE ADD KARO
   schedule:
     - cron: '0 3 * * *'
 jobs:
