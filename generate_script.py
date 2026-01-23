@@ -1,5 +1,6 @@
 import requests
 import os
+import sys
 
 API_URL = "https://api-inference.huggingface.co/models/bigscience/bloomz"
 headers = {
@@ -21,20 +22,23 @@ payload = {
 }
 
 res = requests.post(API_URL, headers=headers, json=payload)
+
+if res.status_code != 200:
+    print("❌ Script generation failed")
+    sys.exit(1)
+
 data = res.json()
 
-text = ""
-if isinstance(data, list) and "generated_text" in data[0]:
-    text = data[0]["generated_text"]
-else:
-    text = (
-        "Log aksar apni asli feelings chhupa lete hain.\n"
-        "Ye habit dheere dheere emotional distance banati hai.\n"
-        "Psychology ke mutabik ye self-protection hota hai.\n"
-        "Par zyada der tak chup rehna dangerous ho sakta hai.\n"
-        "Strong log madad maangne se nahi darte.\n"
-        "Isliye bolna seekhna bhi strength hai."
-    )
+if not isinstance(data, list) or "generated_text" not in data[0]:
+    print("❌ Invalid AI response")
+    sys.exit(1)
+
+text = data[0]["generated_text"].strip()
+
+# Reject short / risky scripts
+if len(text.split()) < 80:
+    print("❌ Script too short")
+    sys.exit(1)
 
 with open("script.txt", "w", encoding="utf-8") as f:
-    f.write(text.strip())
+    f.write(text)
