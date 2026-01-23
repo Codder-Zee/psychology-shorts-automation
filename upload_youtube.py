@@ -1,8 +1,18 @@
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from google.oauth2.credentials import Credentials
 import os
 
-youtube = build("youtube", "v3", developerKey=os.environ["YT_API_KEY"])
+creds = Credentials(
+    None,
+    refresh_token=os.environ["YT_REFRESH_TOKEN"],
+    token_uri="https://oauth2.googleapis.com/token",
+    client_id=os.environ["YT_CLIENT_ID"],
+    client_secret=os.environ["YT_CLIENT_SECRET"],
+    scopes=["https://www.googleapis.com/auth/youtube.upload"]
+)
+
+youtube = build("youtube", "v3", credentials=creds)
 
 request = youtube.videos().insert(
     part="snippet,status",
@@ -12,7 +22,9 @@ request = youtube.videos().insert(
             "description": "Hindi psychology facts #shorts",
             "categoryId": "27"
         },
-        "status": {"privacyStatus": "public"}
+        "status": {
+            "privacyStatus": "public"
+        }
     },
     media_body=MediaFileUpload("short.mp4")
 )
