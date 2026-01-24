@@ -7,3 +7,5 @@ google-api-python-client
 google-auth
 google-auth-oauthlib
 google-generativeai==0.8.3
+pillow
+google-auth-httplib2
