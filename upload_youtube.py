@@ -1,52 +1,39 @@
 import os
-import google.oauth2.credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from google.oauth2.credentials import Credentials
 
-try:
-    CLIENT_ID = os.getenv("YT_CLIENT_ID")
-    CLIENT_SECRET = os.getenv("YT_CLIENT_SECRET")
-    REFRESH_TOKEN = os.getenv("YT_REFRESH_TOKEN")
+REQUIRED = ["YT_REFRESH_TOKEN", "YT_CLIENT_ID", "YT_CLIENT_SECRET"]
+for k in REQUIRED:
+    if not os.getenv(k):
+        raise Exception(f"Missing env variable: {k}")
 
-    if not all([CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN]):
-        raise Exception("YouTube OAuth secrets missing")
+creds = Credentials(
+    token=None,
+    refresh_token=os.environ["YT_REFRESH_TOKEN"],
+    token_uri="https://oauth2.googleapis.com/token",
+    client_id=os.environ["YT_CLIENT_ID"],
+    client_secret=os.environ["YT_CLIENT_SECRET"],
+    scopes=["https://www.googleapis.com/auth/youtube.upload"]
+)
 
-    creds = google.oauth2.credentials.Credentials(
-        None,
-        refresh_token=REFRESH_TOKEN,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        scopes=["https://www.googleapis.com/auth/youtube.upload"]
-    )
+youtube = build("youtube", "v3", credentials=creds)
 
-    youtube = build("youtube", "v3", credentials=creds)
+if not os.path.exists("final_video.mp4"):
+    raise Exception("final_video.mp4 not found")
 
-    video_file = "output/final.mp4"
-    title = open("output/title.txt", encoding="utf-8").read().strip()
-    description = open("output/script.txt", encoding="utf-8").read()
-
-    media = MediaFileUpload(video_file, chunksize=-1, resumable=True)
-
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body={
-            "snippet": {
-                "title": title,
-                "description": description,
-                "categoryId": "22"
-            },
-            "status": {
-                "privacyStatus": "public"
-            }
+request = youtube.videos().insert(
+    part="snippet,status",
+    body={
+        "snippet": {
+            "title": os.getenv("VIDEO_TITLE", "Psychology Secret"),
+            "description": os.getenv("VIDEO_DESC", ""),
+            "categoryId": "27"
         },
-        media_body=media
-    )
+        "status": {"privacyStatus": "public"}
+    },
+    media_body=MediaFileUpload("final_video.mp4", resumable=True)
+)
 
-    response = request.execute()
-    print("✅ VIDEO UPLOADED:", response["id"])
-
-except Exception as e:
-    print("❌ YOUTUBE UPLOAD FAILED")
-    print("Reason:", e)
-    raise
+request.execute()
+print("✅ YouTube upload successful")
