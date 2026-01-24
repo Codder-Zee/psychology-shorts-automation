@@ -1,10 +1,16 @@
 import requests, os
-from moviepy.editor import *
-from PIL import Image
 from io import BytesIO
+
+# 🔥 FIX FOR PIL ANTIALIAS REMOVAL
+from PIL import Image
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.Resampling.LANCZOS
+
+from moviepy.editor import *
 from script_reader import read_next_script
 
 WIDTH, HEIGHT = 1080, 1920
+
 
 def download_image(keyword, idx):
     urls = [
@@ -15,8 +21,7 @@ def download_image(keyword, idx):
     for url in urls:
         try:
             response = requests.get(url, timeout=20)
-            img = Image.open(BytesIO(response.content))
-            img = img.convert("RGB")
+            img = Image.open(BytesIO(response.content)).convert("RGB")
 
             path = f"img_{idx}.jpg"
             img.save(path, "JPEG")
