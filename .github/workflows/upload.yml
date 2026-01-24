@@ -22,5 +22,9 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Upload video to YouTube
+      - name: Upload video
         run: python upload_youtube.py
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
