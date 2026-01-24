@@ -7,20 +7,25 @@ from script_reader import read_next_script
 WIDTH, HEIGHT = 1080, 1920
 
 def download_image(keyword, idx):
-    url = f"https://source.unsplash.com/1080x1920/?{keyword}"
-    response = requests.get(url, timeout=20)
+    urls = [
+        f"https://source.unsplash.com/1080x1920/?{keyword}",
+        "https://picsum.photos/1080/1920"
+    ]
 
-    try:
-        # verify that real image is received
-        img = Image.open(BytesIO(response.content))
-        img = img.convert("RGB")
+    for url in urls:
+        try:
+            response = requests.get(url, timeout=20)
+            img = Image.open(BytesIO(response.content))
+            img = img.convert("RGB")
 
-        path = f"img_{idx}.jpg"
-        img.save(path, "JPEG")
-        return path
+            path = f"img_{idx}.jpg"
+            img.save(path, "JPEG")
+            return path
 
-    except Exception as e:
-        raise Exception(f"Invalid image downloaded for keyword: {keyword}") from e
+        except Exception:
+            continue
+
+    raise Exception(f"All image sources failed for keyword: {keyword}")
 
 
 def create_video():
