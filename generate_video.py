@@ -1,17 +1,27 @@
 import requests, os
 from moviepy.editor import *
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
+from io import BytesIO
 from script_reader import read_next_script
 
 WIDTH, HEIGHT = 1080, 1920
 
 def download_image(keyword, idx):
     url = f"https://source.unsplash.com/1080x1920/?{keyword}"
-    img = requests.get(url).content
-    path = f"img_{idx}.jpg"
-    with open(path, "wb") as f:
-        f.write(img)
-    return path
+    response = requests.get(url, timeout=20)
+
+    try:
+        # verify that real image is received
+        img = Image.open(BytesIO(response.content))
+        img = img.convert("RGB")
+
+        path = f"img_{idx}.jpg"
+        img.save(path, "JPEG")
+        return path
+
+    except Exception as e:
+        raise Exception(f"Invalid image downloaded for keyword: {keyword}") from e
+
 
 def create_video():
     title, script, keywords = read_next_script()
@@ -23,6 +33,7 @@ def create_video():
     clips = []
     for i, kw in enumerate(keywords):
         img_path = download_image(kw, i)
+
         clip = (
             ImageClip(img_path)
             .set_duration(scene_duration)
@@ -37,6 +48,7 @@ def create_video():
     video.write_videofile("final.mp4", fps=30)
 
     return title, script
+
 
 if __name__ == "__main__":
     create_video()
