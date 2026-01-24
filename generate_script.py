@@ -20,10 +20,10 @@ def call_gemini():
         print("Attempting Gemini API (Stable Version)...")
         genai.configure(api_key=GEMINI_API_KEY)
         
-        # FIX: Direct model name without 'models/' prefix
+        # FIX: Sirf 'gemini-1.5-flash' use karein, 'models/' prefix hatayein
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Safety settings disable ki hain taaki facts block na hon
+        # Safety settings disable ki hain taaki psychology facts block na hon
         response = model.generate_content(
             PROMPT,
             safety_settings={
@@ -36,7 +36,7 @@ def call_gemini():
         return response.text.strip()
     except Exception as e:
         print(f"Main attempt failed: {e}")
-        # Last ditch effort with full path
+        # Last ditch effort agar upar wala fail ho
         try:
             model = genai.GenerativeModel('models/gemini-1.5-flash')
             response = model.generate_content(PROMPT)
@@ -53,6 +53,6 @@ if text:
         f.write(text)
     print("Success! Script generated in script.txt")
 else:
-    print("Gemini failed again. Possible invalid API Key or regional restriction.")
+    print("Gemini failed. Possible invalid API Key or regional restriction.")
     sys.exit(1)
-        
+    
