@@ -1,34 +1,28 @@
 import os
-import requests
 import sys
 import google.generativeai as genai
 
-# API Tokens
-HF_TOKEN = os.getenv("HF_TOKEN")
+# GitHub Secrets se key uthana
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 PROMPT = (
     "Write a Hindi psychology short video script.\n"
-    "Length: 40 to 60 seconds.\n"
-    "Structure:\n"
-    "- 8 to 12 short scenes\n"
-    "- Each scene on a new line\n"
-    "- No emojis, No hashtags, No repetition\n"
+    "8 to 12 short scenes, each on a new line. No emojis."
 )
 
 def call_gemini():
-    """Gemini API call with fix for 404 error"""
     if not GEMINI_API_KEY:
-        print("Error: GEMINI_API_KEY is not set in GitHub Secrets.")
+        print("Error: GEMINI_API_KEY missing in GitHub Secrets")
         return None
+    
     try:
-        print("Attempting Gemini API Fallback...")
+        print("Attempting Gemini API...")
         genai.configure(api_key=GEMINI_API_KEY)
         
-        # 'latest' suffix lagana zaroori hai 404 se bachne ke liye
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        # FIX: 'models/' prefix hatana zaroori hai naye version mein
+        # Aur sirf 'gemini-1.5-flash' use karein bina '-latest' ke
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Psychology content block na ho isliye safety_settings use ki hain
         response = model.generate_content(
             PROMPT,
             safety_settings={
@@ -40,21 +34,23 @@ def call_gemini():
         )
         return response.text.strip()
     except Exception as e:
-        print(f"Gemini Error: {e}")
-        return None
+        # Agar naya version fail ho toh purana format try karega
+        print(f"Direct call failed, trying alternative name: {e}")
+        try:
+            model = genai.GenerativeModel('models/gemini-1.5-flash')
+            response = model.generate_content(PROMPT)
+            return response.text.strip()
+        except Exception as e2:
+            print(f"All attempts failed: {e2}")
+            return None
 
-# --- Flow Logic ---
-# Pehle Gemini hi try karte hain kyunki ye zyada reliable hai
+# Execution logic
 text = call_gemini()
 
-if not text:
-    print("Gemini failed, check your API key.")
+if text:
+    with open("script.txt", "w", encoding="utf-8") as f:
+        f.write(text)
+    print("Success: Script generated!")
+else:
+    print("Gemini failed. Please check if the API Key is correct.")
     sys.exit(1)
-
-# Script cleanup
-lines = [l.strip() for l in text.split("\n") if l.strip()]
-
-with open("script.txt", "w", encoding="utf-8") as f:
-    f.write("\n".join(lines[:12]))
-
-print(f"Script generated successfully with {len(lines[:12])} scenes.")
