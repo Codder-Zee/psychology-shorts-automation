@@ -1,6 +1,7 @@
 import os
 import sys
 import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 # GitHub Secrets se key uthana
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -16,32 +17,32 @@ def call_gemini():
         return None
     
     try:
-        print("Attempting Gemini API...")
+        print("Attempting Gemini API (Stable Version)...")
         genai.configure(api_key=GEMINI_API_KEY)
         
-        # FIX: 'models/' prefix hatana zaroori hai naye version mein
-        # Aur sirf 'gemini-1.5-flash' use karein bina '-latest' ke
+        # FIX: Direct model name without 'models/' prefix
         model = genai.GenerativeModel('gemini-1.5-flash')
         
+        # Safety settings disable ki hain taaki facts block na hon
         response = model.generate_content(
             PROMPT,
             safety_settings={
-                'HATE': 'BLOCK_NONE',
-                'HARASSMENT': 'BLOCK_NONE',
-                'SEXUAL' : 'BLOCK_NONE',
-                'DANGEROUS' : 'BLOCK_NONE'
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
             }
         )
         return response.text.strip()
     except Exception as e:
-        # Agar naya version fail ho toh purana format try karega
-        print(f"Direct call failed, trying alternative name: {e}")
+        print(f"Main attempt failed: {e}")
+        # Last ditch effort with full path
         try:
             model = genai.GenerativeModel('models/gemini-1.5-flash')
             response = model.generate_content(PROMPT)
             return response.text.strip()
         except Exception as e2:
-            print(f"All attempts failed: {e2}")
+            print(f"Critical Error: {e2}")
             return None
 
 # Execution logic
@@ -50,7 +51,8 @@ text = call_gemini()
 if text:
     with open("script.txt", "w", encoding="utf-8") as f:
         f.write(text)
-    print("Success: Script generated!")
+    print("Success! Script generated in script.txt")
 else:
-    print("Gemini failed. Please check if the API Key is correct.")
+    print("Gemini failed again. Possible invalid API Key or regional restriction.")
     sys.exit(1)
+        
